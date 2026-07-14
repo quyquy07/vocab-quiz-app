@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Bài kiểm tra từ vựng</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 22px; }
+  .toolbar { margin-bottom: 20px; }
+  .toolbar button { font-size: 16px; padding: 8px 18px; margin-right: 8px; cursor: pointer; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
+  .card.not-found { border-color: #e0a; background: #fff5f5; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .idx { font-weight: bold; color: #888; width: 26px; }
+  .play-btn { padding: 6px 14px; cursor: pointer; }
+  .reveal-btn { padding: 6px 14px; cursor: pointer; background: #eee; }
+  .details { margin-top: 8px; display: none; }
+  .details.shown { display: block; }
+  .word { font-size: 18px; font-weight: bold; }
+  .ipa { color: #555; }
+  .meaning { color: #333; margin-top: 4px; }
+  .missing { color: #a00; font-size: 14px; }
+  a { color: #06c; }
+</style>
+</head>
+<body>
+  <h1>Bài kiểm tra từ vựng</h1>
+  <div class="toolbar">
+    <button onclick="playAll()">▶ Phát tất cả (UK)</button>
+    <button onclick="revealAll()">Hiện tất cả</button>
+    <button onclick="hideAll()">Ẩn tất cả</button>
+    <a href="/">← Tạo danh sách khác</a>
+  </div>
+
+  {% for r in results %}
+  <div class="card {{ '' if r.found else 'not-found' }}" id="card-{{ loop.index0 }}">
+    <div class="row">
+      <span class="idx">{{ loop.index }}.</span>
+      {% if r.audio_uk %}
+        <audio id="audio-uk-{{ loop.index0 }}" src="{{ url_for('static', filename=r.audio_uk) }}" preload="none"></audio>
+        <button class="play-btn" onclick="play({{ loop.index0 }}, 'uk')">🔊 UK</button>
+      {% endif %}
+      {% if r.audio_us %}
+        <audio id="audio-us-{{ loop.index0 }}" src="{{ url_for('static', filename=r.audio_us) }}" preload="none"></audio>
+        <button class="play-btn" onclick="play({{ loop.index0 }}, 'us')">🔊 US</button>
+      {% endif %}
+      {% if not r.audio_uk and not r.audio_us %}
+        <span class="missing">Không tìm thấy audio cho từ này</span>
+      {% elif r.synthesized %}
+        <span class="missing">(giọng tổng hợp, không phải bản ghi âm thật)</span>
+      {% endif %}
+      {% if not r.found %}
+        <span class="missing">Không tìm thấy từ này trong từ điển - kiểm tra lại chính tả</span>
+      {% endif %}
+      <button class="reveal-btn" onclick="toggle({{ loop.index0 }})">Hiện / Ẩn từ</button>
+    </div>
+    <div class="details" id="details-{{ loop.index0 }}">
+      <div class="word">{{ r.word }}</div>
+      <div class="ipa">
+        {% if r.ipa_uk %}UK: /{{ r.ipa_uk }}/{% endif %}
+        {% if r.ipa_us %}&nbsp;&nbsp;US: /{{ r.ipa_us }}/{% endif %}
+      </div>
+      {% if r.pos %}<div class="ipa">({{ r.pos }})</div>{% endif %}
+      {% if r.meaning %}<div class="meaning">{{ r.meaning }}</div>{% endif %}
+      <div><a href="{{ r.source_url }}" target="_blank">Tra thêm trên Cambridge Dictionary</a></div>
+    </div>
+  </div>
+  {% endfor %}
+
+<script>
+  const total = {{ results|length }};
+
+  function toggle(i) {
+    document.getElementById(`details-${i}`).classList.toggle('shown');
+  }
+  function revealAll() {
+    for (let i = 0; i < total; i++) document.getElementById(`details-${i}`).classList.add('shown');
+  }
+  function hideAll() {
+    for (let i = 0; i < total; i++) document.getElementById(`details-${i}`).classList.remove('shown');
+  }
+  function play(i, region) {
+    const el = document.getElementById(`audio-${region}-${i}`);
+    if (el) el.play();
+  }
+
+  let playAllIndex = 0;
+  function playAll() {
+    playAllIndex = 0;
+    playNext();
+  }
+  function playNext() {
+    if (playAllIndex >= total) return;
+    const el = document.getElementById(`audio-uk-${playAllIndex}`) || document.getElementById(`audio-us-${playAllIndex}`);
+    if (!el) {
+      playAllIndex++;
+      playNext();
+      return;
+    }
+    el.onended = () => {
+      playAllIndex++;
+      setTimeout(playNext, 1200);
+    };
+    el.play();
+  }
+</script>
+</body>
+</html>
